@@ -43,6 +43,8 @@ describe Lackeys::Registry, type: :class do
   describe '#call' do
     let(:source) { double }
     let(:source2) { double }
+    let(:s_instance) { double('source2_instance')}
+    let(:s2_instance) { double }
     let(:obs) { [source, source2] }
     let(:method_name) { :foo }
     let(:class_double) { double(name: 'Foo') }
@@ -61,6 +63,8 @@ describe Lackeys::Registry, type: :class do
     before(:each) do
       @registry = Lackeys::Registry.instance_variable_get(:@registry)
       Lackeys::Registry.instance_variable_set(:@registry, contents)
+      allow(source).to receive(:new).and_return(s_instance)
+      allow(source2).to receive(:new).and_return(s2_instance)
     end
 
     after(:each) do
@@ -68,19 +72,19 @@ describe Lackeys::Registry, type: :class do
     end
 
     it 'should call method from source passing calling_obj and args' do
-      expect(source).to receive(method_name).with(calling_obj, 1, 2)
-      expect(source2).to receive(method_name).with(calling_obj, 1, 2)
+      expect(s_instance).to receive(method_name).with(1, 2)
+      expect(s2_instance).to receive(method_name).with(1, 2)
       method
     end
 
     it 'should return an array or returned values' do
-      allow(source)
+      allow(s_instance)
         .to receive(method_name)
-        .with(calling_obj, 1, 2)
+        .with(1, 2)
         .and_return('foo')
-      allow(source2)
+      allow(s2_instance)
         .to receive(method_name)
-        .with(calling_obj, 1, 2)
+        .with(1, 2)
         .and_return('bar')
       expect(method).to eql(%w(foo bar))
     end
@@ -95,9 +99,9 @@ describe Lackeys::Registry, type: :class do
       end
 
       it 'should return an array or returned values' do
-        allow(source)
+        allow(s_instance)
           .to receive(method_name)
-          .with(calling_obj, 1, 2)
+          .with(1, 2)
           .and_return('foo')
         expect(method).to eql('foo')
       end
@@ -107,8 +111,8 @@ describe Lackeys::Registry, type: :class do
       let(:method_name) { 'foo' }
 
       it 'should call method from source passing calling_obj and args' do
-        expect(source).to receive(method_name.to_sym).with(calling_obj, 1, 2)
-        expect(source2).to receive(method_name.to_sym).with(calling_obj, 1, 2)
+        expect(s_instance).to receive(method_name.to_sym).with(1, 2)
+        expect(s2_instance).to receive(method_name.to_sym).with(1, 2)
         method
       end
     end

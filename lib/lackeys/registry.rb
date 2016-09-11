@@ -125,12 +125,13 @@ module Lackeys
       value_hash.keys.include? method_name.to_sym
     end
 
-    def call(method_name, *args)
+    def call(method_name, *args, &block)
       method_name = method_name.to_sym
       raise "#{method_name} has not been registered" unless method? method_name
       return_values = []
       value_hash[method_name][:observers].each do |obs|
-        return_values << obs.send(method_name, @caller, *args)
+        cached_obs = observer_cache.fetch(obs)
+        return_values << cached_obs.send(method_name, *args, &block)
       end
 
       return nil if return_values.empty?
@@ -141,6 +142,10 @@ module Lackeys
 
     def value_hash
       @value_hash ||= self.class.value_by_caller(@caller.class.name)[:registered_methods]
+    end
+
+    def observer_cache
+      @observer_cache ||= ObserverCache.new(@caller)
     end
   end
 end
