@@ -8,8 +8,9 @@ module Lackeys
                       :after_save,
                       :before_create,
                       :after_create].freeze
-    def initialize(source)
+    def initialize(source, dest)
       @source = source
+      @dest = dest
       @exclusive_methods = []
       @multi_methods = []
       @validations = []
@@ -53,6 +54,7 @@ module Lackeys
     def to_h
       {
         source: @source,
+        dest: @dest,
         exclusive_methods: @exclusive_methods,
         multi_methods: @multi_methods,
         validations: @validations,

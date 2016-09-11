@@ -4,11 +4,13 @@ require 'spec_helper'
 require 'lackeys'
 
 describe Lackeys::Registration, type: :class do
-  subject(:registration) { Lackeys::Registration.new(source) }
+  subject(:registration) { Lackeys::Registration.new(source, dest) }
   let(:source) { Integer }
+  let(:dest) { 'String' }
 
   it 'sets @source instance variable to passed parameter' do
     expect(registration.instance_variable_get(:@source)).to eql(source)
+    expect(registration.instance_variable_get(:@dest)).to eql(dest)
     registration
   end
 
@@ -141,7 +143,7 @@ describe Lackeys::Registration, type: :class do
   describe '#to_h' do
     subject(:method) { new_reg.to_h }
     let(:new_reg) do
-      Lackeys::Registration.new(Integer).tap do |r|
+      Lackeys::Registration.new(Integer, 'String').tap do |r|
         r.add_method :ex_method
         r.add_method :mul_method, allow_multi: true
         r.add_validation :val
@@ -151,6 +153,7 @@ describe Lackeys::Registration, type: :class do
     let(:output) do
       {
         source: Integer,
+        dest: dest,
         exclusive_methods: [:ex_method],
         multi_methods: [:mul_method],
         validations: [:val],

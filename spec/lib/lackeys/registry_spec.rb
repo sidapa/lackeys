@@ -1,16 +1,24 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'lackeys'
 
 describe Lackeys::Registry, type: :class do
-  subject(:registry) { Lackeys::Registry }
+  subject(:registry) { Lackeys::Registry.new(calling_obj) }
+  let(:calling_obj) { double(class: Fixnum) }
+
+  it 'sets @caller' do
+    calling_class_name = registry.instance_variable_get(:@caller)
+    expect(calling_class_name)
+      .to eql(calling_obj)
+  end
 
   describe '::register' do
-    subject(:method) { Lackeys::Registry.register(params) { |_x| } }
-    let(:params) { Integer }
+    subject(:method) { Lackeys::Registry.register(*params) { |_x| } }
+    let(:params) { [Integer, 'String'] }
 
     context 'no block given' do
-      subject(:method) { Lackeys::Registry.register(params) }
+      subject(:method) { Lackeys::Registry.register(*params) }
       let(:error_msg) { 'Registry#register requires a block' }
 
       it { expect { method }.to raise_error error_msg }
@@ -23,33 +31,40 @@ describe Lackeys::Registry, type: :class do
 
       expect(Lackeys::Registration)
         .to receive(:new)
-        .with(params)
+        .with(*params)
         .and_return(reg_double)
       expect(reg_double).to receive(:register_method).with(:test)
       expect(Lackeys::Registry).to receive(:add).with(reg_double)
 
-      registry.register(params) { |r| r.register_method :test }
+      Lackeys::Registry.register(*params) { |r| r.register_method :test }
     end
   end
 
-  describe '::call' do
+  describe '#call' do
     let(:source) { double }
     let(:source2) { double }
     let(:obs) { [source, source2] }
-    let(:contents) { { foo: { multi: false, observers: obs } } }
     let(:method_name) { :foo }
-    let(:calling_obj) { double }
+    let(:class_double) { double(name: 'Foo') }
+    let(:calling_obj) { double(class: class_double) }
+    let(:contents) do
+      {
+        'Foo' => {
+          registered_methods: { foo: { multi: false, observers: obs } }
+        }
+      }
+    end
     subject(:method) do
-      Lackeys::Registry.call method_name, calling_obj, 1, 2
+      Lackeys::Registry.new(calling_obj).call method_name, 1, 2
     end
 
     before(:each) do
-      @methods = Lackeys::Registry.instance_variable_get(:@registered_methods)
-      Lackeys::Registry.instance_variable_set(:@registered_methods, contents)
+      @registry = Lackeys::Registry.instance_variable_get(:@registry)
+      Lackeys::Registry.instance_variable_set(:@registry, contents)
     end
 
     after(:each) do
-      Lackeys::Registry.instance_variable_set(:@registered_methods, @methods)
+      Lackeys::Registry.instance_variable_set(:@registry, @registry)
     end
 
     it 'should call method from source passing calling_obj and args' do
@@ -71,7 +86,13 @@ describe Lackeys::Registry, type: :class do
     end
 
     context 'only 1 source' do
-      let(:contents) { { foo: { multi: false, observers: [source] } } }
+      let(:contents) do
+        {
+          'Foo' => {
+            registered_methods: { foo: { multi: false, observers: [source] } }
+          }
+        }
+      end
 
       it 'should return an array or returned values' do
         allow(source)
@@ -100,21 +121,53 @@ describe Lackeys::Registry, type: :class do
     end
   end
 
-  describe '::method?' do
-    let(:param) { Lackeys::Registration.new(source) }
-    let(:source) { Integer }
-    let(:contents) { { foo: { multi: false, observers: [String] } } }
-    let(:method_name) { :foo }
-    subject(:method) { Lackeys::Registry.method? method_name }
+  describe '::value_by_caller' do
+    let(:contents) { { 'String' => value } }
+    let(:value) { :foo }
+    subject(:method) { Lackeys::Registry.value_by_caller('String') }
 
     before(:each) do
-      @methods = Lackeys::Registry.instance_variable_get(:@registered_methods)
-      Lackeys::Registry.instance_variable_set(:@registered_methods, contents)
+      @registry = Lackeys::Registry.instance_variable_get(:@registry)
+      Lackeys::Registry.instance_variable_set(:@registry, contents)
+    end
+
+    after(:each) do
+      Lackeys::Registry.instance_variable_set(:@registry, @registry)
+    end
+
+    it { should eql(value) }
+
+    context 'caller key does not exist' do
+      let(:contents) { { 'NotString' => value } }
+
+      it { is_expected.to eql({}) }
+    end
+  end
+
+  describe '#method?' do
+    let(:param) { Lackeys::Registration.new(source, dest) }
+    let(:source) { Integer }
+    let(:dest) { 'String' }
+    let(:dest_object) { 'I am a String' }
+    let(:method_name) { :foo }
+    let(:contents) do
+      {
+        'String' => {
+          registered_methods: { foo: { multi: false, observers: [String] } }
+        }
+      }
+    end
+
+    subject(:method) { Lackeys::Registry.new(dest_object).method? method_name }
+
+    before(:each) do
+      @registry = Lackeys::Registry.instance_variable_get(:@registry)
+      Lackeys::Registry.instance_variable_set(:@registry, contents)
       param.add_method method_name
     end
 
     after(:each) do
-      Lackeys::Registry.instance_variable_set(:@registered_methods, @methods)
+      Lackeys::Registry.instance_variable_set(:@registry, @registry)
     end
 
     it { should eql(true) }
@@ -134,33 +187,41 @@ describe Lackeys::Registry, type: :class do
 
   describe '::add' do
     subject(:method) { Lackeys::Registry.add(parameter) }
-    let(:param) { Lackeys::Registration.new(source) }
+    let(:param) { Lackeys::Registration.new(source, dest) }
     let(:source) { Integer }
+    let(:dest) { 'String' }
     let(:option) { {} }
 
-    context '@registered_methods' do
+    context 'registered_methods' do
       let(:method_name) { :foo }
       let(:contents) { {} }
       let(:error_msg) { 'foo has already been registered' }
       before(:each) do
-        @methods = Lackeys::Registry.instance_variable_get(:@registered_methods)
-        Lackeys::Registry.instance_variable_set(:@registered_methods, contents)
+        @registry = Lackeys::Registry.instance_variable_get(:@registry)
+        Lackeys::Registry.instance_variable_set(:@registry, contents)
         param.add_method method_name, option
       end
 
       after(:each) do
-        Lackeys::Registry.instance_variable_set(:@registered_methods, @methods)
+        Lackeys::Registry.instance_variable_set(:@registry, @registry)
       end
 
       it 'adds the method' do
-        methods = Lackeys::Registry.instance_variable_get(:@registered_methods)
         Lackeys::Registry.add(param)
+        registry = Lackeys::Registry.instance_variable_get(:@registry)
+        methods = registry[dest][:registered_methods]
         expect(methods[method_name])
           .to eql(multi: false, observers: [Integer])
       end
 
       context 'a multi: false method has already been registered' do
-        let(:contents) { { foo: { multi: false, observers: [String] } } }
+        let(:contents) do
+          {
+            'String' => {
+              registered_methods: { foo: { multi: false, observers: [String] } }
+            }
+          }
+        end
 
         it { expect { Lackeys::Registry.add(param) }.to raise_error error_msg }
       end
@@ -171,13 +232,20 @@ describe Lackeys::Registry, type: :class do
 
         it 'adds the method' do
           Lackeys::Registry.add(param)
-          mthods = Lackeys::Registry.instance_variable_get(:@registered_methods)
+          registry = Lackeys::Registry.instance_variable_get(:@registry)
+          mthods = registry[dest][:registered_methods]
           expect(mthods[method_name])
             .to eql(multi: true, observers: [Integer])
         end
 
         context 'a multi: false method has already been registered' do
-          let(:contents) { { foo: { multi: false, observers: [String] } } }
+          let(:contents) do
+            {
+              'String' => {
+                registered_methods: { foo: { multi: false, observers: [String] } }
+              }
+            }
+          end
 
           it { expect { add_method }.to raise_error error_msg }
         end
@@ -189,23 +257,29 @@ describe Lackeys::Registry, type: :class do
       let(:contents) { {} }
       let(:error_msg) { 'foo has already been registered' }
       before(:each) do
-        @validations = Lackeys::Registry.instance_variable_get(:@validations)
-        Lackeys::Registry.instance_variable_set(:@validations, contents)
+        @registry = Lackeys::Registry.instance_variable_get(:@registry)
+        Lackeys::Registry.instance_variable_set(:@regitry, contents)
         param.add_validation method_name
       end
 
       after(:each) do
-        Lackeys::Registry.instance_variable_set(:@validations, @validations)
+        Lackeys::Registry.instance_variable_set(:@registry, @registry)
       end
 
       it 'adds the method' do
         Lackeys::Registry.add(param)
-        mthods = Lackeys::Registry.instance_variable_get(:@validations)
-        expect(mthods[method_name]).to eql(observers: [Integer])
+        mthods = Lackeys::Registry.instance_variable_get(:@registry)[dest]
+        expect(mthods[:validations][method_name]).to eql(observers: [Integer])
       end
 
       context 'an existing validation has already been registered' do
-        let(:contents) { { foo: { observers: [Integer] } } }
+        let(:contents) do
+          {
+            'String' => {
+              validations: { foo: { observers: [Integer] } }
+            }
+          }
+        end
 
         it { expect { Lackeys::Registry.add(param) }.to raise_error error_msg }
       end
@@ -218,23 +292,29 @@ describe Lackeys::Registry, type: :class do
       let(:error_msg) { 'foo has already been registered' }
 
       before(:each) do
-        @callbacks = Lackeys::Registry.instance_variable_get(:@callbacks)
-        Lackeys::Registry.instance_variable_set(:@callbacks, contents)
+        @registry = Lackeys::Registry.instance_variable_get(:@registry)
+        Lackeys::Registry.instance_variable_set(:@registry, contents)
         param.add_callback :before_save, method_name
       end
 
       after(:each) do
-        Lackeys::Registry.instance_variable_set(:@callbacks, @callbacks)
+        Lackeys::Registry.instance_variable_set(:@registry, @registry)
       end
 
       it 'adds the method' do
         Lackeys::Registry.add(param)
-        mthods = Lackeys::Registry.instance_variable_get(:@callbacks)
+        mthods = Lackeys::Registry.instance_variable_get(:@registry)[dest][:callbacks]
         expect(mthods[callback_type][method_name]).to eql(observers: [Integer])
       end
 
       context 'an existing callback method has already been registered' do
-        let(:contents) { { before_save: { foo: { observers: [Integer] } } } }
+        let(:contents) do
+          {
+            'String' => {
+              callbacks: { before_save: { foo: { observers: [Integer] } } }
+            }
+          }
+        end
 
         it { expect { Lackeys::Registry.add(param) }.to raise_error error_msg }
       end
