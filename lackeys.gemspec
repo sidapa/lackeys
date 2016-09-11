@@ -10,8 +10,11 @@ Gem::Specification.new do |spec|
   spec.version       = Lackeys::VERSION
   spec.authors       = ['Adrian Joseph Tumusok']
   spec.email         = ['adrian@egissys.com']
-  spec.summary       = 'TODO: Write a short summary. Required.'
-  spec.description   = 'TODO: Write a longer description. Optional.'
+  spec.summary       = 'Allows a service modules connect to a class painlessly'
+  spec.description   = <<-EOS
+    Lackeys is a pubsub implementation that lets users automatically hook into
+    existing classes.
+  EOS
   spec.homepage      = ''
   spec.license       = 'MIT'
 
