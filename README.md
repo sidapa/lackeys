@@ -1,3 +1,6 @@
+
+[![Build Status](https://circleci.com/gh/sidapa/lackeys.svg?style=shield&circle-token=:circle-token)](https://circleci.com/gh/sidapa/lackeys)
+
 # Lackeys
 
 TODO: Write a gem description
