@@ -125,6 +125,15 @@ module Lackeys
       value_hash.keys.include? method_name.to_sym
     end
 
+    CALLBACK_TYPES.each do |t|
+      define_method("call_#{t}_callbacks".to_sym) do
+        callbacks[t][t][:observers].each do |obs|
+          cached_obs = observer_cache.fetch(obs)
+          cached_obs.send(t)
+        end
+      end
+    end
+
     def call(method_name, *args, &block)
       method_name = method_name.to_sym
       raise "#{method_name} has not been registered" unless method? method_name
@@ -142,6 +151,10 @@ module Lackeys
 
     def value_hash
       @value_hash ||= self.class.value_by_caller(@caller.class)[:registered_methods]
+    end
+
+    def callbacks
+      @callbacks ||= self.class.value_by_caller(@caller.class)[:callbacks]
     end
 
     def observer_cache
