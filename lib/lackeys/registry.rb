@@ -141,7 +141,7 @@ module Lackeys
     private
 
     def value_hash
-      @value_hash ||= self.class.value_by_caller(@caller.class.name)[:registered_methods]
+      @value_hash ||= self.class.value_by_caller(@caller.class)[:registered_methods]
     end
 
     def observer_cache

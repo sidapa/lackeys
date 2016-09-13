@@ -51,7 +51,7 @@ describe Lackeys::Registry, type: :class do
     let(:calling_obj) { double(class: class_double) }
     let(:contents) do
       {
-        'Foo' => {
+        class_double => {
           registered_methods: { foo: { multi: false, observers: obs } }
         }
       }
@@ -92,7 +92,7 @@ describe Lackeys::Registry, type: :class do
     context 'only 1 source' do
       let(:contents) do
         {
-          'Foo' => {
+          class_double => {
             registered_methods: { foo: { multi: false, observers: [source] } }
           }
         }
@@ -151,12 +151,12 @@ describe Lackeys::Registry, type: :class do
   describe '#method?' do
     let(:param) { Lackeys::Registration.new(source, dest) }
     let(:source) { Integer }
-    let(:dest) { 'String' }
+    let(:dest) { String }
     let(:dest_object) { 'I am a String' }
     let(:method_name) { :foo }
     let(:contents) do
       {
-        'String' => {
+        String => {
           registered_methods: { foo: { multi: false, observers: [String] } }
         }
       }
@@ -193,7 +193,7 @@ describe Lackeys::Registry, type: :class do
     subject(:method) { Lackeys::Registry.add(parameter) }
     let(:param) { Lackeys::Registration.new(source, dest) }
     let(:source) { Integer }
-    let(:dest) { 'String' }
+    let(:dest) { String }
     let(:option) { {} }
 
     context 'registered_methods' do
@@ -221,7 +221,7 @@ describe Lackeys::Registry, type: :class do
       context 'a multi: false method has already been registered' do
         let(:contents) do
           {
-            'String' => {
+            String => {
               registered_methods: { foo: { multi: false, observers: [String] } }
             }
           }
@@ -245,7 +245,7 @@ describe Lackeys::Registry, type: :class do
         context 'a multi: false method has already been registered' do
           let(:contents) do
             {
-              'String' => {
+              String => {
                 registered_methods: { foo: { multi: false, observers: [String] } }
               }
             }
@@ -279,7 +279,7 @@ describe Lackeys::Registry, type: :class do
       context 'an existing validation has already been registered' do
         let(:contents) do
           {
-            'String' => {
+            String => {
               validations: { foo: { observers: [Integer] } }
             }
           }
@@ -314,7 +314,7 @@ describe Lackeys::Registry, type: :class do
       context 'an existing callback method has already been registered' do
         let(:contents) do
           {
-            'String' => {
+            String => {
               callbacks: { before_save: { foo: { observers: [Integer] } } }
             }
           }
