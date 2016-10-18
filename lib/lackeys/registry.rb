@@ -138,10 +138,13 @@ module Lackeys
       method_name = method_name.to_sym
       raise "#{method_name} has not been registered" unless method? method_name
       return_values = []
+      commit_chain = []
       value_hash[method_name][:observers].each do |obs|
         cached_obs = observer_cache.fetch(obs)
         return_values << cached_obs.send(method_name, *args, &block)
+        commit_chain << cached_obs
       end
+      commit_chain.each(&:commit) if value_hash[method_name][:multi]
 
       return nil if return_values.empty?
       return_values.size > 1 ? return_values : return_values.first

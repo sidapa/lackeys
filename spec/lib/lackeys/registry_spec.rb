@@ -123,6 +123,27 @@ describe Lackeys::Registry, type: :class do
 
       it { expect { method }.to raise_error error_msg }
     end
+
+    context 'call commit on all observers for a multi call' do
+      let(:s_instance) { double('source2_instance')}
+      let(:s2_instance) { double }
+      let(:contents) do
+        {
+          class_double => {
+            registered_methods: { foo: { multi: true, observers: obs } }
+          }
+        }
+      end
+
+      before(:each) do
+        expect(s_instance).to receive(:foo).with(1,2).and_return true
+        expect(s2_instance).to receive(:foo).with(1,2).and_return true
+        expect(s_instance).to receive(:commit).and_return true
+        expect(s2_instance).to receive(:commit).and_return true
+      end
+
+      it { method }
+    end
   end
 
   describe '::value_by_caller' do
