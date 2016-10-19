@@ -4,7 +4,7 @@ module Lackeys
       @__registry ||= Registry.new(self)
     end
 
-    def respond_to?(method_name, other_param)
+    def respond_to?(method_name, other_param = nil)
       registry.method?(method_name) || super(method_name, other_param)
     end
 
