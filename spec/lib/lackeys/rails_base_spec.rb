@@ -1,8 +1,8 @@
 require 'spec_helper'
 require 'lackeys'
 
-describe Lackeys::OwnerBase, type: :class do
-  let(:test_class) { Class.new { include Lackeys::OwnerBase } }
+describe Lackeys::RailsBase, type: :class do
+  let(:test_class) { Class.new { include Lackeys::RailsBase } }
   let(:test_class_instance) { test_class.new }
   let(:registry) { double("Registry Double") }
   before(:each) do
@@ -64,7 +64,7 @@ describe Lackeys::OwnerBase, type: :class do
       class ParentDummyClass
         def method_missing(method_name, *args, &block); "200"; end
       end
-      class DummyClass < ParentDummyClass; include Lackeys::OwnerBase; end;
+      class DummyClass < ParentDummyClass; include Lackeys::RailsBase; end;
       before(:each) do
         expect(registry).to receive(:method?).with(method_name).and_return false
       end

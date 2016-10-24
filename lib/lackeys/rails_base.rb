@@ -1,5 +1,5 @@
 module Lackeys
-  module OwnerBase
+  module RailsBase
     def registry
       @__registry ||= Registry.new(self)
     end
