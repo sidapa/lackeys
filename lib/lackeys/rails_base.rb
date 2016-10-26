@@ -1,5 +1,15 @@
 module Lackeys
   module RailsBase
+    def self.included(base)
+      base.class_eval do
+        define_model_callbacks :save, :create
+
+        Registration::CALLBACK_TYPES.each do |c|
+          send(c, lambda { registry.send("call_#{c}_callbacks".to_sym) })
+        end
+      end
+    end
+
     def registry
       @__registry ||= Registry.new(self)
     end

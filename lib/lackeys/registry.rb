@@ -127,9 +127,11 @@ module Lackeys
 
     CALLBACK_TYPES.each do |t|
       define_method("call_#{t}_callbacks".to_sym) do
-        callbacks[t][t][:observers].each do |obs|
-          cached_obs = observer_cache.fetch(obs)
-          cached_obs.send(t)
+        callbacks[t].keys.each do |method_name|
+          callbacks[t][method_name][:observers].each do |obs|
+            cached_obs = observer_cache.fetch(obs)
+            cached_obs.send(method_name)
+          end
         end
       end
     end
