@@ -17,6 +17,29 @@ describe Lackeys::RailsBase, type: :class do
     end
   end
 
+  describe "validations" do
+    let(:test_class_instance) { TestRailsClass.new }
+    class TestRailsClass
+      extend ActiveModel::Callbacks
+      include ActiveModel::Validations
+      include Lackeys::RailsBase
+    end
+    class TestServiceClass < Lackeys::ServiceBase
+      Lackeys::Registry.register(TestServiceClass, TestRailsClass) do |r|
+        r.add_validation :validation_method
+      end
+
+      def validation_method; end
+    end
+    before(:each) do
+      expect_any_instance_of(TestServiceClass).to receive(:validation_method).and_return true
+    end
+
+    it "should be called", skip_registry_stub: true do
+      test_class_instance.valid?
+    end
+  end
+
   describe "should automatically generate callbacks" do
     let(:test_class_instance) { TestRailsClass.new }
     let(:before_save_called) { false }
@@ -29,7 +52,6 @@ describe Lackeys::RailsBase, type: :class do
     end
     class TestServiceClass < Lackeys::ServiceBase
       Lackeys::Registry.register(TestServiceClass, TestRailsClass) do |r|
-        # Do nothing
         r.add_method :called
         r.add_callback :before_save, "before_save"
         r.add_callback :after_save, "after_save"

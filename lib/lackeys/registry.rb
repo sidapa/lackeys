@@ -162,6 +162,10 @@ module Lackeys
       @callbacks ||= self.class.value_by_caller(@caller.class)[:callbacks]
     end
 
+    def validations
+      @validations ||= self.class.value_by_caller(@caller.class)[:validations]
+    end
+
     def observer_cache
       @observer_cache ||= ObserverCache.new(@caller)
     end
