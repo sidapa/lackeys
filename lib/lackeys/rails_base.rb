@@ -27,7 +27,7 @@ module Lackeys
           cached_obs.send(method_name)
         end
       end
-      self.errors.empty? && super(context)
+      [self.errors.empty?, super(context)].all?
     end
 
     def method_missing(method_name, *args, &block)

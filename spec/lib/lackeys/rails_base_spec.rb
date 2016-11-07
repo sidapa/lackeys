@@ -19,6 +19,7 @@ describe Lackeys::RailsBase, type: :class do
 
   describe "validations" do
     let(:test_class_instance) { TestRailsClass.new }
+    subject { test_class_instance.valid? }
     class TestRailsClass
       extend ActiveModel::Callbacks
       include ActiveModel::Validations
@@ -31,12 +32,49 @@ describe Lackeys::RailsBase, type: :class do
 
       def validation_method; end
     end
-    before(:each) do
-      expect_any_instance_of(TestServiceClass).to receive(:validation_method).and_return true
+
+    context "validation succeeds" do
+      before(:each) do
+        expect_any_instance_of(TestServiceClass).to receive(:validation_method).and_return true
+      end
+
+      it "should be called", skip_registry_stub: true do
+        should be true
+      end
     end
 
-    it "should be called", skip_registry_stub: true do
-      test_class_instance.valid?
+    context "service validation fails" do
+      it "should fail validation", skip_registry_stub: true do
+        TestServiceClass.class_eval do
+          def validation_method
+            parent.errors[:base] << "New error!"
+          end
+        end
+
+        should be false
+      end
+    end
+
+    context "model validation fails" do
+      let(:test_class_instance) { TestChildClass.new }
+      class TestSuper
+        extend ActiveModel::Callbacks
+        include ActiveModel::Validations
+        def valid?(_context = nil); false; end
+      end
+      class TestChildClass < TestSuper
+        include Lackeys::RailsBase
+      end
+      class TestChildServiceClass < Lackeys::ServiceBase
+        Lackeys::Registry.register(TestChildServiceClass, TestChildClass) do |r|
+          r.add_validation :validation_method
+        end
+
+        def validation_method; end
+      end
+      it "should fail validation", skip_registry_stub: true do
+        should be false
+      end
     end
   end
 
