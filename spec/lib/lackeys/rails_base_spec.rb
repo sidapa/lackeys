@@ -17,6 +17,67 @@ describe Lackeys::RailsBase, type: :class do
     end
   end
 
+  describe "validations" do
+    let(:test_class_instance) { TestRailsClass.new }
+    subject { test_class_instance.valid? }
+    class TestRailsClass
+      extend ActiveModel::Callbacks
+      include ActiveModel::Validations
+      include Lackeys::RailsBase
+    end
+    class TestServiceClass < Lackeys::ServiceBase
+      Lackeys::Registry.register(TestServiceClass, TestRailsClass) do |r|
+        r.add_validation :validation_method
+      end
+
+      def validation_method; end
+    end
+
+    context "validation succeeds" do
+      before(:each) do
+        expect_any_instance_of(TestServiceClass).to receive(:validation_method).and_return true
+      end
+
+      it "should be called", skip_registry_stub: true do
+        should be true
+      end
+    end
+
+    context "service validation fails" do
+      it "should fail validation", skip_registry_stub: true do
+        TestServiceClass.class_eval do
+          def validation_method
+            parent.errors[:base] << "New error!"
+          end
+        end
+
+        should be false
+      end
+    end
+
+    context "model validation fails" do
+      let(:test_class_instance) { TestChildClass.new }
+      class TestSuper
+        extend ActiveModel::Callbacks
+        include ActiveModel::Validations
+        def valid?(_context = nil); false; end
+      end
+      class TestChildClass < TestSuper
+        include Lackeys::RailsBase
+      end
+      class TestChildServiceClass < Lackeys::ServiceBase
+        Lackeys::Registry.register(TestChildServiceClass, TestChildClass) do |r|
+          r.add_validation :validation_method
+        end
+
+        def validation_method; end
+      end
+      it "should fail validation", skip_registry_stub: true do
+        should be false
+      end
+    end
+  end
+
   describe "should automatically generate callbacks" do
     let(:test_class_instance) { TestRailsClass.new }
     let(:before_save_called) { false }
@@ -29,7 +90,6 @@ describe Lackeys::RailsBase, type: :class do
     end
     class TestServiceClass < Lackeys::ServiceBase
       Lackeys::Registry.register(TestServiceClass, TestRailsClass) do |r|
-        # Do nothing
         r.add_method :called
         r.add_callback :before_save, "before_save"
         r.add_callback :after_save, "after_save"
