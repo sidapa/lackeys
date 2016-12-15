@@ -33,7 +33,7 @@ module Lackeys
     def self.register(source, dest)
       raise 'Registry#register requires a block' unless block_given?
 
-      registration = Lackeys::Registration.new(source, dest)
+      registration = Lackeys::Registration.new(source, dest.name.to_sym)
       yield registration
 
       add registration
@@ -154,16 +154,20 @@ module Lackeys
 
     private
 
+    def caller_class_name
+      @caller.class.name.to_sym
+    end
+
     def value_hash
-      @value_hash ||= self.class.value_by_caller(@caller.class)[:registered_methods]
+      @value_hash ||= self.class.value_by_caller(caller_class_name)[:registered_methods]
     end
 
     def callbacks
-      @callbacks ||= self.class.value_by_caller(@caller.class)[:callbacks]
+      @callbacks ||= self.class.value_by_caller(caller_class_name)[:callbacks]
     end
 
     def validations
-      @validations ||= self.class.value_by_caller(@caller.class)[:validations]
+      @validations ||= self.class.value_by_caller(caller_class_name)[:validations]
     end
 
     def observer_cache
