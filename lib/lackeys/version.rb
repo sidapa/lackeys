@@ -5,5 +5,5 @@
 # can also be used to automatically
 # forward messages to to subscribers
 module Lackeys
-  VERSION = '0.0.1'
+  VERSION = '0.1.0'
 end

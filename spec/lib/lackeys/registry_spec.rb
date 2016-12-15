@@ -15,7 +15,8 @@ describe Lackeys::Registry, type: :class do
 
   describe '::register' do
     subject(:method) { Lackeys::Registry.register(*params) { |_x| } }
-    let(:params) { [Integer, 'String'] }
+    let(:params) { [Integer, String] }
+    let(:registration_params) { [Integer, :String] }
 
     context 'no block given' do
       subject(:method) { Lackeys::Registry.register(*params) }
@@ -31,7 +32,7 @@ describe Lackeys::Registry, type: :class do
 
       expect(Lackeys::Registration)
         .to receive(:new)
-        .with(*params)
+        .with(*registration_params)
         .and_return(reg_double)
       expect(reg_double).to receive(:register_method).with(:test)
       expect(Lackeys::Registry).to receive(:add).with(reg_double)
@@ -51,7 +52,7 @@ describe Lackeys::Registry, type: :class do
     let(:calling_obj) { double(class: class_double) }
     let(:contents) do
       {
-        class_double => {
+        class_double.name.to_sym => {
           registered_methods: { foo: { multi: false, observers: obs } }
         }
       }
@@ -92,7 +93,7 @@ describe Lackeys::Registry, type: :class do
     context 'only 1 source' do
       let(:contents) do
         {
-          class_double => {
+          class_double.name.to_sym => {
             registered_methods: { foo: { multi: false, observers: [source] } }
           }
         }
@@ -129,7 +130,7 @@ describe Lackeys::Registry, type: :class do
       let(:s2_instance) { double }
       let(:contents) do
         {
-          class_double => {
+          class_double.name.to_sym => {
             registered_methods: { foo: { multi: true, observers: obs } }
           }
         }
@@ -177,7 +178,7 @@ describe Lackeys::Registry, type: :class do
     let(:method_name) { :foo }
     let(:contents) do
       {
-        String => {
+        String.name.to_sym => {
           registered_methods: { foo: { multi: false, observers: [String] } }
         }
       }
