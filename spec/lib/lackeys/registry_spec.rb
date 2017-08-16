@@ -44,8 +44,8 @@ describe Lackeys::Registry, type: :class do
   describe '#call' do
     let(:source) { double }
     let(:source2) { double }
-    let(:s_instance) { double('source2_instance')}
-    let(:s2_instance) { double }
+    let(:s_instance) { double('Instance1') }
+    let(:s2_instance) { double('Instance2') }
     let(:obs) { [source, source2] }
     let(:method_name) { :foo }
     let(:class_double) { double(name: 'Foo') }
@@ -57,15 +57,19 @@ describe Lackeys::Registry, type: :class do
         }
       }
     end
+    let(:parameter_list) { [1, 2] }
+
     subject(:method) do
-      Lackeys::Registry.new(calling_obj).call method_name, 1, 2
+      Lackeys::Registry.new(calling_obj).call method_name, *parameter_list
     end
 
     before(:each) do
       @registry = Lackeys::Registry.instance_variable_get(:@registry)
       Lackeys::Registry.instance_variable_set(:@registry, contents)
-      allow(source).to receive(:new).and_return(s_instance)
-      allow(source2).to receive(:new).and_return(s2_instance)
+      allow(source).to receive(:new).and_return s_instance
+      allow(source2).to receive(:new).and_return s2_instance
+      allow(s_instance).to receive(:class).and_return source
+      allow(s2_instance).to receive(:class).and_return source2
     end
 
     after(:each) do
@@ -73,21 +77,25 @@ describe Lackeys::Registry, type: :class do
     end
 
     it 'should call method from source passing calling_obj and args' do
-      expect(s_instance).to receive(method_name).with(1, 2)
-      expect(s2_instance).to receive(method_name).with(1, 2)
+      expect(s_instance).to receive(method_name).with(*parameter_list)
+      expect(s2_instance).to receive(method_name).with(*parameter_list)
       method
     end
 
-    it 'should return an array or returned values' do
+    it 'should return an hash of returned values' do
+      result_hash = {}
+      result_hash[source] = 'foo'
+      result_hash[source2] = 'bar'
+
       allow(s_instance)
         .to receive(method_name)
-        .with(1, 2)
+        .with(*parameter_list)
         .and_return('foo')
       allow(s2_instance)
         .to receive(method_name)
-        .with(1, 2)
+        .with(*parameter_list)
         .and_return('bar')
-      expect(method).to eql(%w(foo bar))
+      expect(method).to eql(result_hash)
     end
 
     context 'only 1 source' do
@@ -102,7 +110,7 @@ describe Lackeys::Registry, type: :class do
       it 'should return an array or returned values' do
         allow(s_instance)
           .to receive(method_name)
-          .with(1, 2)
+          .with(*parameter_list)
           .and_return('foo')
         expect(method).to eql('foo')
       end
@@ -112,8 +120,8 @@ describe Lackeys::Registry, type: :class do
       let(:method_name) { 'foo' }
 
       it 'should call method from source passing calling_obj and args' do
-        expect(s_instance).to receive(method_name.to_sym).with(1, 2)
-        expect(s2_instance).to receive(method_name.to_sym).with(1, 2)
+        expect(s_instance).to receive(method_name.to_sym).with(*parameter_list)
+        expect(s2_instance).to receive(method_name.to_sym).with(*parameter_list)
         method
       end
     end
@@ -126,7 +134,7 @@ describe Lackeys::Registry, type: :class do
     end
 
     context 'call commit on all observers for a multi call' do
-      let(:s_instance) { double('source2_instance')}
+      let(:s_instance) { double }
       let(:s2_instance) { double }
       let(:contents) do
         {
@@ -137,13 +145,48 @@ describe Lackeys::Registry, type: :class do
       end
 
       before(:each) do
-        expect(s_instance).to receive(:foo).with(1,2).and_return true
-        expect(s2_instance).to receive(:foo).with(1,2).and_return true
+        expect(s_instance).to receive(:foo).with(*parameter_list).and_return true
+        expect(s2_instance).to receive(:foo).with(*parameter_list).and_return true
         expect(s_instance).to receive(:commit).and_return true
         expect(s2_instance).to receive(:commit).and_return true
       end
 
       it { method }
+    end
+
+    context 'multi call with selected returners' do
+      let(:source) { double(source_class_name) }
+      let(:source2) { double(source2_class_name) }
+      let(:source_class_name) { 'Source1' }
+      let(:source2_class_name) { 'Source2' }
+      let(:s_return_value) { true }
+      let(:s2_return_value) { false }
+      let(:contents) do
+        {
+          class_double.name.to_sym => {
+            registered_methods: { foo: { multi: true, observers: obs, returners: returners } }
+          }
+        }
+      end
+
+      before(:each) do
+        expect(s_instance).to receive(:foo).with(*parameter_list).and_return true
+        expect(s2_instance).to receive(:foo).with(*parameter_list).and_return true
+        expect(s_instance).to receive(:commit).and_return s_return_value
+        expect(s2_instance).to receive(:commit).and_return s2_return_value
+      end
+
+      context 'source is a returner' do
+        let(:returners) { [source] }
+
+        it { should eq s_return_value }
+      end
+
+      context 'source2 is a returner' do
+        let(:returners) { [source2] }
+
+        it { should eq s2_return_value }
+      end
     end
   end
 
@@ -259,9 +302,21 @@ describe Lackeys::Registry, type: :class do
         it 'adds the method' do
           Lackeys::Registry.add(param)
           registry = Lackeys::Registry.instance_variable_get(:@registry)
-          mthods = registry[dest][:registered_methods]
-          expect(mthods[method_name])
-            .to eql(multi: true, observers: [Integer])
+          methods = registry[dest][:registered_methods]
+          expect(methods[method_name])
+            .to eql(multi: true, observers: [Integer], returners: [])
+        end
+
+        context 'this multi_method is a returner' do
+          let(:option) { { allow_multi: true, returner: true } }
+
+          it 'adds the method' do
+            Lackeys::Registry.add(param)
+            registry = Lackeys::Registry.instance_variable_get(:@registry)
+            methods = registry[dest][:registered_methods]
+            expect(methods[method_name])
+              .to eql(multi: true, observers: [Integer], returners: [Integer])
+          end
         end
 
         context 'a multi: false method has already been registered' do
@@ -294,8 +349,8 @@ describe Lackeys::Registry, type: :class do
 
       it 'adds the method' do
         Lackeys::Registry.add(param)
-        mthods = Lackeys::Registry.instance_variable_get(:@registry)[dest]
-        expect(mthods[:validations][method_name]).to eql(observers: [Integer])
+        methods = Lackeys::Registry.instance_variable_get(:@registry)[dest]
+        expect(methods[:validations][method_name]).to eql(observers: [Integer])
       end
 
       context 'an existing validation has already been registered' do
@@ -329,8 +384,8 @@ describe Lackeys::Registry, type: :class do
 
       it 'adds the method' do
         Lackeys::Registry.add(param)
-        mthods = Lackeys::Registry.instance_variable_get(:@registry)[dest][:callbacks]
-        expect(mthods[callback_type][method_name]).to eql(observers: [Integer])
+        methods = Lackeys::Registry.instance_variable_get(:@registry)[dest][:callbacks]
+        expect(methods[callback_type][method_name]).to eql(observers: [Integer])
       end
 
       context 'an existing callback method has already been registered' do
