@@ -164,6 +164,45 @@ describe Lackeys::RailsBase, type: :class do
     end
   end
 
+  describe "#who_has?" do
+    let(:method_name) { :test_method }
+    let(:test_class_instance) { TestClass.new }
+    class TestClass
+      extend ActiveModel::Callbacks
+      include Lackeys::RailsBase
+
+      def test_class_method; end
+    end
+
+    subject { test_class_instance.who_has? method_name }
+
+    before(:each) do
+      allow(registry).to receive(:method?).and_return registry_method_return
+    end
+
+    context "not defined in any service" do
+      let(:registry_method_return) { nil }
+      it { should be_nil }
+    end
+
+    context "method defined in 1 service" do
+      let(:registry_method_return) { String }
+      it { should eq String }
+    end
+
+    context "method defined in more than 1 service" do
+      let(:registry_method_return) { [String, Fixnum] }
+      it { should include String }
+      it { should include Fixnum }
+    end
+
+    context "method is an actual instance method (not a service method)" do
+      let(:method_name) { :test_class_method }
+      let(:registry_method_return) { nil }
+      it { should eq TestClass }
+    end
+  end
+
   describe "method_missing" do
     let(:method_name) { :test_method }
 

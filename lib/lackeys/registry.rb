@@ -122,8 +122,10 @@ module Lackeys
                          :load_callbacks,
                          :default_object_hash
 
-    def method?(method_name)
-      value_hash.keys.include? method_name.to_sym
+    def method?(method_name, return_origin = false)
+      res = value_hash[method_name.to_sym]
+      return !res.nil? unless return_origin
+      res.nil? ? nil : (res[:observers].size == 1 ? res[:observers].first : res[:observers])
     end
 
     CALLBACK_TYPES.each do |t|

@@ -219,6 +219,7 @@ describe Lackeys::Registry, type: :class do
     let(:dest) { String }
     let(:dest_object) { 'I am a String' }
     let(:method_name) { :foo }
+    let(:return_origin) { false }
     let(:contents) do
       {
         String.name.to_sym => {
@@ -227,7 +228,7 @@ describe Lackeys::Registry, type: :class do
       }
     end
 
-    subject(:method) { Lackeys::Registry.new(dest_object).method? method_name }
+    subject(:method) { Lackeys::Registry.new(dest_object).method? method_name, return_origin }
 
     before(:each) do
       @registry = Lackeys::Registry.instance_variable_get(:@registry)
@@ -251,6 +252,32 @@ describe Lackeys::Registry, type: :class do
       let(:method_name) { 'foo' }
 
       it { should eql(true) }
+    end
+
+    context 'return_origin is true' do
+      let(:return_origin) { true }
+
+      it { should eq String }
+
+      context 'method has not been registered' do
+        let(:method_name) { :bar }
+
+        it { should be_nil }
+      end
+
+      context 'multiple services' do
+        let(:contents) do
+          {
+            String.name.to_sym => {
+              registered_methods: { foo: { multi: false, observers: [String, Fixnum] } }
+            }
+          }
+        end
+
+        it { should be_a Array }
+        it { should include String }
+        it { should include Fixnum }
+      end
     end
   end
 
