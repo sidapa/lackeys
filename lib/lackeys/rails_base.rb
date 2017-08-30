@@ -10,13 +10,6 @@ module Lackeys
       end
     end
 
-    # Development method
-    def who_has?(method_name)
-      return nil unless respond_to?(method_name)
-      res = registry.method?(method_name, true)
-      res.nil? ? self.class : res
-    end
-
     def registry
       @__registry ||= Registry.new(self)
     end
@@ -42,6 +35,22 @@ module Lackeys
         registry.call method_name, *args
       else
         super
+      end
+    end
+
+    #######################
+    # Development methods #
+    #######################
+    def who_has?(method_name)
+      return nil unless respond_to?(method_name)
+      res = registry.method?(method_name, true)
+      if res.nil?
+        { klass: self.class, location: self.class.instance_method(method_name.to_sym).source_location.join(":") }
+      else
+        final = Array(res).map do |r|
+          { klass: r, location: r.instance_method(method_name.to_sym).source_location.join(":") }
+        end
+        final.size == 1 ? final.first : final
       end
     end
   end
