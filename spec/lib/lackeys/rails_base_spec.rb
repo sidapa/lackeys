@@ -169,8 +169,8 @@ describe Lackeys::RailsBase, type: :class do
     let(:test_class_instance) { TestClass.new }
     let(:service1) { double(source_location: ["path1","line_num1"]) }
     let(:service2) { double(source_location: ["path2","line_num2"]) }
-    let(:service1_method_location) { "path1:line_num1" }
-    let(:service2_method_location) { "path2:line_num2" }
+    let(:service1_method_location) { service1.source_location.join(":") }
+    let(:service2_method_location) { service2.source_location.join(":") }
 
     class TestClass
       extend ActiveModel::Callbacks
