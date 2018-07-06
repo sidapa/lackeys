@@ -157,6 +157,7 @@ describe Lackeys::Registration, type: :class do
         exclusive_methods: [:ex_method],
         multi_methods: [:mul_method],
         validations: [:val],
+        options: {"Integer#ex_method" => {}, "Integer#mul_method" => {}},
         callbacks: {
           before_save: [:bs_callback],
           after_save: [],

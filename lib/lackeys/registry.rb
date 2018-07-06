@@ -59,13 +59,14 @@ module Lackeys
 
     def self.load_multi_methods(source_hash, dest_hash)
       source_hash[:multi_methods].each do |m|
-        entry = dest_hash[:registered_methods].fetch(m, multi: true, observers: [])
+        entry = dest_hash[:registered_methods].fetch(m, multi: true, observers: [], returners: [])
 
         if !entry[:multi] && entry[:observers].size > 0
           raise "#{m} has already been registered"
         end
 
         entry[:observers] << source_hash[:source]
+        entry[:returners] << source_hash[:source] if source_hash[:options]["#{source_hash[:source]}##{m}"][:returner]
 
         dest_hash[:registered_methods][m] = entry
       end
@@ -121,8 +122,10 @@ module Lackeys
                          :load_callbacks,
                          :default_object_hash
 
-    def method?(method_name)
-      value_hash.keys.include? method_name.to_sym
+    def method?(method_name, return_origin = false)
+      res = value_hash[method_name.to_sym]
+      return !res.nil? unless return_origin
+      res.nil? ? nil : (res[:observers].size == 1 ? res[:observers].first : res[:observers])
     end
 
     CALLBACK_TYPES.each do |t|
@@ -139,17 +142,30 @@ module Lackeys
     def call(method_name, *args, &block)
       method_name = method_name.to_sym
       raise "#{method_name} has not been registered" unless method? method_name
-      return_values = []
+      return_values = {}
       commit_chain = []
+      is_multi = value_hash[method_name][:multi]
+
       value_hash[method_name][:observers].each do |obs|
         cached_obs = observer_cache.fetch(obs)
-        return_values << cached_obs.send(method_name, *args, &block)
-        commit_chain << cached_obs
+        res = cached_obs.send(method_name, *args, &block)
+        if is_multi
+          commit_chain << cached_obs
+        else
+          return_values[cached_obs.class] = res
+        end
       end
-      commit_chain.each(&:commit) if value_hash[method_name][:multi]
+
+      returners = value_hash[method_name][:returners] || []
+
+      commit_chain.each do |c|
+        res = c.send(:commit)
+        return_values[c.class] = res if returners.empty? || returners.include?(c.class)
+      end
 
       return nil if return_values.empty?
-      return_values.size > 1 ? return_values : return_values.first
+      # If there is more than 1 return value, return the whole hash. Otherwise, return the value of the (only) key
+      return_values.size > 1 ? return_values : return_values.first.last
     end
 
     private
