@@ -158,7 +158,7 @@ module Lackeys
         end
       end
 
-      returner = value_hash[method_name][:returner]
+      returner = value_hash[method_name][:returner] if is_multi
 
       commit_chain.each do |c|
         # Use alphanumeric characters only (no bang characters)
