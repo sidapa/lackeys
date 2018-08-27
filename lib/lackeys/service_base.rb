@@ -8,9 +8,5 @@ module Lackeys
     def initialize_internals; end
 
     def parent; @parent; end
-
-    def commit
-      raise NotImplementedError
-    end
   end
 end
