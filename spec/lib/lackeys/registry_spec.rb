@@ -42,8 +42,8 @@ describe Lackeys::Registry, type: :class do
   end
 
   describe '#call' do
-    class Service1; def initialize(*args); end; def foo(a,b); 1; end; def foo_commit; end; end
-    class Service2; def initialize(*args); end; def foo(a,b); 2; end; def foo_commit; end; end
+    class Service1; def initialize(*args); end; def foo!(a,b); 1; end; def foo_commit; end; end
+    class Service2; def initialize(*args); end; def foo!(a,b); 2; end; def foo_commit; end; end
     class BaseClass; end
 
     let(:s_instance) { Service1.new }
@@ -51,14 +51,15 @@ describe Lackeys::Registry, type: :class do
     let(:source) { Service1 }
     let(:source2) { Service2 }
     let(:obs) { [source] }
-    let(:method_name) { :foo }
+    let(:method_name) { :foo! }
+    let(:commit_method_name) { :foo_commit }
     let(:calling_obj) { BaseClass.new }
     let(:multi) { false }
     let(:returner) { nil }
     let(:contents) do
       {
         BaseClass.name.to_sym => {
-          registered_methods: { foo: { multi: multi, observers: obs, returner: returner } }
+          registered_methods: { foo!: { multi: multi, observers: obs, returner: returner } }
         }
       }
     end
@@ -89,16 +90,14 @@ describe Lackeys::Registry, type: :class do
         allow(s_instance)
           .to receive(method_name)
           .with(*parameter_list)
-          .and_return('foo')
-        expect(method).to eql('foo')
+          .and_return(method_name.to_s)
+        expect(method).to eql(method_name.to_s)
       end
     end
 
     context 'method_name passed is a string' do
-      let(:method_name) { 'foo' }
-
       it 'should call method from source passing calling_obj and args' do
-        expect(s_instance).to receive(method_name.to_sym).with(*parameter_list)
+        expect(s_instance).to receive(method_name).with(*parameter_list)
         method
       end
     end
@@ -115,10 +114,10 @@ describe Lackeys::Registry, type: :class do
       let(:obs) { [source, source2] }
 
       before(:each) do
-        expect(s_instance).to receive(:foo).with(*parameter_list).and_return true
-        expect(s2_instance).to receive(:foo).with(*parameter_list).and_return true
-        expect(s_instance).to receive(:foo_commit).and_return true
-        expect(s2_instance).to receive(:foo_commit).and_return true
+        expect(s_instance).to receive(method_name).with(*parameter_list).and_return true
+        expect(s2_instance).to receive(method_name).with(*parameter_list).and_return true
+        expect(s_instance).to receive(commit_method_name).and_return true
+        expect(s2_instance).to receive(commit_method_name).and_return true
       end
 
       it { method }
@@ -131,10 +130,10 @@ describe Lackeys::Registry, type: :class do
       let(:s2_return_value) { false }
 
       before(:each) do
-        expect(s_instance).to receive(:foo).with(*parameter_list).and_return true
-        expect(s2_instance).to receive(:foo).with(*parameter_list).and_return true
-        expect(s_instance).to receive(:foo_commit).and_return s_return_value
-        expect(s2_instance).to receive(:foo_commit).and_return s2_return_value
+        expect(s_instance).to receive(method_name).with(*parameter_list).and_return true
+        expect(s2_instance).to receive(method_name).with(*parameter_list).and_return true
+        expect(s_instance).to receive(commit_method_name).and_return s_return_value
+        expect(s2_instance).to receive(commit_method_name).and_return s2_return_value
       end
 
       context 'with no returner' do
@@ -211,7 +210,6 @@ describe Lackeys::Registry, type: :class do
     let(:dest) { String }
     let(:dest_object) { 'I am a String' }
     let(:method_name) { :foo }
-    let(:return_origin) { false }
     let(:contents) do
       {
         String.name.to_sym => {
@@ -220,7 +218,7 @@ describe Lackeys::Registry, type: :class do
       }
     end
 
-    subject(:method) { Lackeys::Registry.new(dest_object).method? method_name, return_origin }
+    subject(:method) { Lackeys::Registry.new(dest_object).method? method_name }
 
     before(:each) do
       @registry = Lackeys::Registry.instance_variable_get(:@registry)
@@ -245,32 +243,37 @@ describe Lackeys::Registry, type: :class do
 
       it { should eql(true) }
     end
+  end
 
-    context 'return_origin is true' do
-      let(:return_origin) { true }
-
-      it { should eq String }
-
-      context 'method has not been registered' do
-        let(:method_name) { :bar }
-
-        it { should be_nil }
-      end
-
-      context 'multiple services' do
-        let(:contents) do
-          {
-            String.name.to_sym => {
-              registered_methods: { foo: { multi: false, observers: [String, Fixnum] } }
-            }
-          }
-        end
-
-        it { should be_a Array }
-        it { should include String }
-        it { should include Fixnum }
-      end
+  describe '#get_observers' do
+    let(:param) { Lackeys::Registration.new(source, dest) }
+    let(:source) { Integer }
+    let(:dest) { String }
+    let(:dest_object) { 'I am a String' }
+    let(:method_name) { :foo }
+    let(:observers) { [String] }
+    let(:contents) do
+      {
+        String.name.to_sym => {
+          registered_methods: { foo: { multi: false, observers: observers } }
+        }
+      }
     end
+
+    subject(:method) { Lackeys::Registry.new(dest_object).get_observers method_name }
+
+    before(:each) do
+      @registry = Lackeys::Registry.instance_variable_get(:@registry)
+      Lackeys::Registry.instance_variable_set(:@registry, contents)
+      param.add_method method_name
+    end
+
+    after(:each) do
+      Lackeys::Registry.instance_variable_set(:@registry, @registry)
+    end
+
+    it { should be_an Array }
+    it { should include(String) }
   end
 
   describe '::add' do

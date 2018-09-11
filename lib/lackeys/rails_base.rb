@@ -41,16 +41,12 @@ module Lackeys
     #######################
     # Development methods #
     #######################
-    def who_has?(method_name)
-      return nil unless respond_to?(method_name)
-      res = registry.method?(method_name, true)
-      if res.nil?
-        { klass: self.class, location: self.class.instance_method(method_name.to_sym).source_location.join(":") }
-      else
-        final = Array(res).map do |r|
-          { klass: r, location: r.instance_method(method_name.to_sym).source_location.join(":") }
-        end
-        final.size == 1 ? final.first : final
+    def who_has(method_name)
+      return [] unless respond_to?(method_name)
+      registry.get_observers(method_name).tap do |observers|
+        observers << self.class unless observers.any?
+      end.map do |r|
+        { klass: r, location: r.instance_method(method_name.to_sym).source_location.join(":") }
       end
     end
   end
