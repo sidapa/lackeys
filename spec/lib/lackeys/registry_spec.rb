@@ -42,8 +42,8 @@ describe Lackeys::Registry, type: :class do
   end
 
   describe '#call' do
-    class Service1; def initialize(*args); end; def foo!(a,b); 1; end; def foo_commit; end; end
-    class Service2; def initialize(*args); end; def foo!(a,b); 2; end; def foo_commit; end; end
+    class Service1; def initialize(*args); end; def foo_bar!(a,b); 1; end; def foo_bar_commit; end; end
+    class Service2; def initialize(*args); end; def foo_bar!(a,b); 2; end; def foo_bar_commit; end; end
     class BaseClass; end
 
     let(:s_instance) { Service1.new }
@@ -51,15 +51,15 @@ describe Lackeys::Registry, type: :class do
     let(:source) { Service1 }
     let(:source2) { Service2 }
     let(:obs) { [source] }
-    let(:method_name) { :foo! }
-    let(:commit_method_name) { :foo_commit }
+    let(:method_name) { :foo_bar! }
+    let(:commit_method_name) { :foo_bar_commit }
     let(:calling_obj) { BaseClass.new }
     let(:multi) { false }
     let(:returner) { nil }
     let(:contents) do
       {
         BaseClass.name.to_sym => {
-          registered_methods: { foo!: { multi: multi, observers: obs, returner: returner } }
+          registered_methods: { foo_bar!: { multi: multi, observers: obs, returner: returner } }
         }
       }
     end

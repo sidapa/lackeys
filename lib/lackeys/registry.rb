@@ -166,8 +166,8 @@ module Lackeys
       returner = value_hash[method_name][:returner] if is_multi
 
       commit_chain.each do |c|
-        # Use alphanumeric characters only (no bang characters)
-        clean_name = method_name.to_s.gsub(/[^0-9a-zA-Z]/i, '')
+        # Use alphanumeric characters and underscore only (no bang characters)
+        clean_name = method_name.to_s.gsub(/[^0-9a-zA-Z_]/i, '')
         res = c.send("#{clean_name}_commit".to_sym)
         return_values[c.class] = res
       end
