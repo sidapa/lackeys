@@ -19,15 +19,22 @@ module Lackeys
       CALLBACK_TYPES.each do |t|
         @callbacks[t] = []
       end
+      @options = {}
+      @return_wrappers = {}
     end
 
-    def add_method(name, opts = {})
+    def add_method(name, opts = {}, &block)
       if @exclusive_methods.include?(name) || @multi_methods.include?(name)
         raise "#{name} has already been registered"
       end
 
-      target_array = multi_method_array?(opts.fetch(:allow_multi, false))
+      opts = opts.dup
+      target_array = multi_method_array?(opts.delete(:allow_multi) || false)
       target_array << name.to_sym
+
+      @options["#{@source}##{name}"] = opts
+      @return_wrappers["#{name}"] = block if block_given?
+
       nil
     end
 
@@ -58,7 +65,9 @@ module Lackeys
         exclusive_methods: @exclusive_methods,
         multi_methods: @multi_methods,
         validations: @validations,
-        callbacks: @callbacks
+        callbacks: @callbacks,
+        options: @options,
+        return_wrappers: @return_wrappers
       }
     end
 

@@ -59,13 +59,18 @@ module Lackeys
 
     def self.load_multi_methods(source_hash, dest_hash)
       source_hash[:multi_methods].each do |m|
-        entry = dest_hash[:registered_methods].fetch(m, multi: true, observers: [])
+        entry = dest_hash[:registered_methods].fetch(m, multi: true, observers: [], returner: nil)
 
         if !entry[:multi] && entry[:observers].size > 0
           raise "#{m} has already been registered"
         end
 
         entry[:observers] << source_hash[:source]
+
+        if source_hash[:return_wrappers].fetch(m.to_s, nil)
+          raise "Multi-method #{m} already previously registered with a block" if entry[:returner]
+          entry[:returner] = source_hash[:return_wrappers][m.to_s]
+        end
 
         dest_hash[:registered_methods][m] = entry
       end
@@ -122,7 +127,12 @@ module Lackeys
                          :default_object_hash
 
     def method?(method_name)
-      value_hash.keys.include? method_name.to_sym
+      !value_hash[method_name.to_sym].nil?
+    end
+
+    def get_observers(method_name)
+      return [] unless value_hash[method_name.to_sym]
+      value_hash[method_name.to_sym].fetch(:observers)
     end
 
     CALLBACK_TYPES.each do |t|
@@ -139,17 +149,39 @@ module Lackeys
     def call(method_name, *args, &block)
       method_name = method_name.to_sym
       raise "#{method_name} has not been registered" unless method? method_name
-      return_values = []
+      return_values = {}
       commit_chain = []
+      is_multi = value_hash[method_name][:multi]
+
       value_hash[method_name][:observers].each do |obs|
         cached_obs = observer_cache.fetch(obs)
-        return_values << cached_obs.send(method_name, *args, &block)
-        commit_chain << cached_obs
+        res = cached_obs.send(method_name, *args, &block)
+        if is_multi
+          commit_chain << cached_obs
+        else
+          return_values[cached_obs.class] = res
+        end
       end
-      commit_chain.each(&:commit) if value_hash[method_name][:multi]
+
+      returner = value_hash[method_name][:returner] if is_multi
+
+      commit_chain.each do |c|
+        # Use alphanumeric characters and underscore only (no bang characters)
+        clean_name = method_name.to_s.gsub(/[^0-9a-zA-Z_]/i, '')
+        res = c.send("#{clean_name}_commit".to_sym)
+        return_values[c.class] = res
+      end
 
       return nil if return_values.empty?
-      return_values.size > 1 ? return_values : return_values.first
+
+      # If there is more than 1 return value, return the whole hash. Otherwise, return the value of the (only) key
+      if returner
+        returner.call(return_values)
+      elsif return_values.size == 1
+        return_values.first.last
+      else
+        return_values
+      end
     end
 
     private

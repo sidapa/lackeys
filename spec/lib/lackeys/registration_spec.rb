@@ -42,6 +42,20 @@ describe Lackeys::Registration, type: :class do
 
       it { expect { method }.not_to change { @ex_methods.size } }
       it { expect { method }.to change { @m_methods.size }.by 1 }
+
+      context 'block passed' do
+        subject(:method) do
+          registration.add_method(method_name, options) do
+            # This is a block
+          end
+        end
+
+        it 'should save the block' do
+          method
+          expect(registration.instance_variable_get(:@return_wrappers)["#{method_name}"]).not_to be_nil
+          expect(registration.instance_variable_get(:@return_wrappers)["#{method_name}"]).to be_kind_of(Proc)
+        end
+      end
     end
 
     context 'method already exists' do
@@ -146,26 +160,21 @@ describe Lackeys::Registration, type: :class do
       Lackeys::Registration.new(Integer, 'String').tap do |r|
         r.add_method :ex_method
         r.add_method :mul_method, allow_multi: true
+        r.add_method :mul_method_block, allow_multi: true do
+          # This is a block
+        end
         r.add_validation :val
         r.add_callback :before_save, :bs_callback
       end
     end
-    let(:output) do
-      {
-        source: Integer,
-        dest: dest,
-        exclusive_methods: [:ex_method],
-        multi_methods: [:mul_method],
-        validations: [:val],
-        callbacks: {
-          before_save: [:bs_callback],
-          after_save: [],
-          before_create: [],
-          after_create: []
-        }
-      }
-    end
 
-    it { should eql(output) }
+    it { should include(source: Integer) }
+    it { should include(dest: dest) }
+    it { should include(exclusive_methods: [:ex_method]) }
+    it { should include(multi_methods: [:mul_method, :mul_method_block]) }
+    it { should include(validations: [:val]) }
+    it { should include(options: { "Integer#ex_method" => {}, "Integer#mul_method" => {}, "Integer#mul_method_block" => {} }) }
+    it { should include(callbacks: { before_save: [:bs_callback], after_save: [], before_create: [], after_create: [] }) }
+    it { should include(return_wrappers: { "mul_method_block" => an_instance_of(Proc) }) }
   end
 end

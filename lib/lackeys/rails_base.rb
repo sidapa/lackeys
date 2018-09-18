@@ -37,5 +37,17 @@ module Lackeys
         super
       end
     end
+
+    #######################
+    # Development methods #
+    #######################
+    def who_has(method_name)
+      return [] unless respond_to?(method_name)
+      registry.get_observers(method_name).tap do |observers|
+        observers << self.class unless observers.any?
+      end.map do |r|
+        { klass: r, location: r.instance_method(method_name.to_sym).source_location.join(":") }
+      end
+    end
   end
 end

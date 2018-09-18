@@ -164,6 +164,67 @@ describe Lackeys::RailsBase, type: :class do
     end
   end
 
+  describe "#who_has" do
+    let(:method_name) { :test_method }
+    let(:test_class_instance) { TestClass.new }
+    let(:service1) { double(source_location: ["path1","line_num1"]) }
+    let(:service2) { double(source_location: ["path2","line_num2"]) }
+    let(:registry_method_return) { true }
+    let(:registry_observers) { [TestService1, TestService2] }
+    let(:service1_method_location) { service1.source_location.join(":") }
+    let(:service2_method_location) { service2.source_location.join(":") }
+
+    class TestClass
+      extend ActiveModel::Callbacks
+      include Lackeys::RailsBase
+
+      def test_class_method; end
+    end
+    class TestService1 < Lackeys::ServiceBase; end
+    class TestService2 < Lackeys::ServiceBase; end
+
+    subject { test_class_instance.who_has method_name }
+
+    before(:each) do
+      allow(registry).to receive(:method?).and_return registry_method_return
+      allow(registry).to receive(:get_observers).and_return registry_observers
+      allow(TestService1).to receive(:instance_method).with(method_name).and_return service1
+      allow(TestService2).to receive(:instance_method).with(method_name).and_return service2
+    end
+
+    context "not defined in any service" do
+      let(:registry_method_return) { false }
+      it { should eq [] }
+    end
+
+    context "method defined in 1 service" do
+      let(:registry_observers) { [TestService1] }
+      it { should be_an Array }
+      it { should include(a_kind_of(Hash)) }
+      it { should include(hash_including(:klass => TestService1)) }
+      it { should include(hash_including(:location => service1_method_location)) }
+    end
+
+    context "method defined in more than 1 service" do
+      let(:registry_observers) { [TestService1, TestService2] }
+      it { should be_an Array }
+      it { should include(a_kind_of(Hash)) }
+      it { should include(hash_including(:klass => TestService1)) }
+      it { should include(hash_including(:location => service1_method_location)) }
+      it { should include(hash_including(:klass => TestService2)) }
+      it { should include(hash_including(:location => service2_method_location)) }
+    end
+
+    context "method is an actual instance method (not a service method)" do
+      let(:method_name) { :test_class_method }
+      let(:registry_observers) { [] }
+      it { should be_an Array }
+      it { should include(a_kind_of(Hash)) }
+      it { should include(hash_including(:klass => TestClass)) }
+      it { should include(hash_including(:location => TestClass.instance_method(method_name).source_location.join(":"))) }
+    end
+  end
+
   describe "method_missing" do
     let(:method_name) { :test_method }
 
